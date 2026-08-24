@@ -11,34 +11,64 @@ permissions:
   packages: write
 
 jobs:
-  build-and-push:
+  build-test-push-update-gitops:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      # 1. Checkout application repository
+      - name: Checkout application code
         uses: actions/checkout@v4
 
+      # 2. Set up Python
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
+      # 3. Install dependencies
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
+      # 4. Basic application check
       - name: Run application check
-        run: python -m py_compile app.py
+        run: |
+          python -m py_compile app.py
 
-      - name: Log in to GHCR
+      # 5. Login to GitHub Container Registry
+      - name: Login to GHCR
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # 6. Build and push Docker image
       - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
           tags: ghcr.io/thayuruh/devops-gitops-project:${{ github.sha }}
+
+      # 7. Clone GitOps repository and update image
+      - name: Update GitOps repository
+        env:
+          GITOPS_TOKEN: ${{ secrets.GITOPS_TOKEN }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          git clone https://x-access-token:${GITOPS_TOKEN}@github.com/thayuruh/devops-gitops-config.git
+
+          cd devops-gitops-config
+
+          sed -i "s|image: ghcr.io/thayuruh/devops-gitops-project:.*|image: ghcr.io/thayuruh/devops-gitops-project:${IMAGE_TAG}|" base/deployment.yaml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add base/deployment.yaml
+
+          git commit -m "Update image to ${IMAGE_TAG}"
+
+          git push
