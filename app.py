@@ -4,7 +4,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def hello():
-    return "This is my first Kubernetes project! 🚀"
+    return "Version 3 - deployed automatically by Argo CD!! 🚀"
 
 @app.route("/health")
 def health():
