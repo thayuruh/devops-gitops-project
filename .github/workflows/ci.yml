@@ -27,3 +27,14 @@ jobs:
       - name: Test application
         run: |
           python -c "from app import app; client = app.test_client(); response = client.get('/health'); assert response.status_code == 200"
+
+  docker:
+    runs-on: ubuntu-latest
+    needs: test
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build -t devops-gitops-app:${{ github.sha }} .
